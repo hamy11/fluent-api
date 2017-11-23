@@ -105,8 +105,7 @@ namespace ObjectPrinting
 
         private string PrintToString(object obj, int nestingLevel)
         {
-            if (obj == null)
-                return "null" + Environment.NewLine;
+            if (obj == null) return $"null{Environment.NewLine}";
 
             var identation = new string('\t', nestingLevel + 1);
             var sb = new StringBuilder();
@@ -117,25 +116,24 @@ namespace ObjectPrinting
                 .Where(x => !excludedProperties.Contains(x) && !excludedTypes.Contains(x.PropertyType)))
             {
                 var objValue = propertyInfo.GetValue(obj);
-                var value = IsPrimitiveValue(objValue)
+                var value = IsPrimitiveType(objValue.GetType()) 
                     ? PrintPrimitiveValue(objValue, propertyInfo)
-                    : PrintToString(propertyInfo.GetValue(obj), nestingLevel + 1);
+                    : PrintToString(objValue, nestingLevel + 1);
                 sb.Append($"{identation}{propertyInfo.Name} = {value}{Environment.NewLine}");
             }
 
             return sb.ToString();
         }
 
-        private bool IsPrimitiveValue(object obj)
+        private static bool IsPrimitiveType(Type currentType)
         {
-            var currentType = obj.GetType();
             var finalTypes = new[]
             {
                 typeof(int), typeof(double), typeof(float), typeof(string),
                 typeof(DateTime), typeof(TimeSpan)
             };
 
-            return !excludedTypes.Contains(currentType) && finalTypes.Contains(currentType);
+            return finalTypes.Contains(currentType);
         }
 
         private string PrintPrimitiveValue(object obj, PropertyInfo propertyInfo)
