@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace ObjectPrinting
@@ -10,6 +11,7 @@ namespace ObjectPrinting
         {
             var config = ((IPropertyPrintingConfig<TOwner>) printingConfig).ConfigDataHandler;
             config.NumericCultures[typeof(int)] = info;
+
             return ((IPropertyPrintingConfig<TOwner>) printingConfig).ConfigDataHandler.PrintingConfig;
         }
 
@@ -26,6 +28,7 @@ namespace ObjectPrinting
         {
             var config = ((IPropertyPrintingConfig<TOwner>) printingConfig).ConfigDataHandler;
             config.NumericCultures[typeof(long)] = info;
+
             return ((IPropertyPrintingConfig<TOwner>) printingConfig).ConfigDataHandler.PrintingConfig;
         }
 
@@ -34,22 +37,23 @@ namespace ObjectPrinting
         {
             var config = ((IPropertyPrintingConfig<TOwner>) printingConfig).ConfigDataHandler;
             config.NumericCultures[typeof(float)] = info;
+
             return ((IPropertyPrintingConfig<TOwner>) printingConfig).ConfigDataHandler.PrintingConfig;
         }
 
         public static PrintingConfig<TOwner> TrimmedToLength<TOwner>(
             this PropertyPrintingConfig<TOwner, string> propConfig, int maxLen)
         {
+            Func<object, string> trimm = x => x.ToString().Length < maxLen
+                ? (string)x
+                : ((string)x).Substring(0, maxLen);
+
             var config = ((IPropertyPrintingConfig<TOwner>) propConfig).ConfigDataHandler;
-            Func<object, string> trimm = x =>
-            {
-                if (x.ToString().Length < maxLen)
-                    throw new ArgumentOutOfRangeException();
-                return ((string) x).Substring(0, maxLen);
-            };
+            if (!config.TypePrinters.ContainsKey(typeof(string)))
+                config.TypePrinters[typeof(string)] = new List<Func<object, string>>();
             config.TypePrinters[typeof(string)].Add(trimm);
+
             return ((IPropertyPrintingConfig<TOwner>) propConfig).ConfigDataHandler.PrintingConfig;
         }
-
     }
 }

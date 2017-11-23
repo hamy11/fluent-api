@@ -56,6 +56,7 @@ namespace ObjectPrinting
                     configDataHandler.TypePrinters[typeof(TPropType)] = new List<Func<object, string>>();
                 configDataHandler.TypePrinters[typeof(TPropType)].Add(objPrinter);
             }
+
             return configDataHandler.PrintingConfig;
         }
     }
@@ -78,28 +79,28 @@ namespace ObjectPrinting
 
         public PrintingConfig<TOwner> Exclude<TPropType>()
         {
-            if (!excludedTypes.Contains(typeof(TPropType)))
-                excludedTypes.Add(typeof(TPropType));
+            excludedTypes.Add(typeof(TPropType));
+
             return this;
         }
 
         public PropertyPrintingConfig<TOwner, TPropType> Printing<TPropType>()
         {
-            return new PropertyPrintingConfig<TOwner, TPropType>(this.configDataHandler);
+            return new PropertyPrintingConfig<TOwner, TPropType>(configDataHandler);
         }
 
         public PrintingConfig<TOwner> Exclude<TPropType>(Expression<Func<TOwner, TPropType>> memberSelector)
         {
             var propInfo = ((MemberExpression) memberSelector.Body).Member as PropertyInfo;
-            if (!excludedProperties.Contains(propInfo))
-                excludedProperties.Add(propInfo);
+            excludedProperties.Add(propInfo);
+
             return this;
         }
 
         public PropertyPrintingConfig<TOwner, TPropType> Printing<TPropType>(
             Expression<Func<TOwner, TPropType>> memberSelector)
         {
-            return new PropertyPrintingConfig<TOwner, TPropType>(this.configDataHandler, memberSelector);
+            return new PropertyPrintingConfig<TOwner, TPropType>(configDataHandler, memberSelector);
         }
 
         private string PrintToString(object obj, int nestingLevel)
@@ -107,28 +108,25 @@ namespace ObjectPrinting
             if (obj == null)
                 return "null" + Environment.NewLine;
 
-            var value = string.Empty;
-            if (TryPrintPrimitiveValue(obj, ref value)) return value;
-
             var identation = new string('\t', nestingLevel + 1);
             var sb = new StringBuilder();
             var type = obj.GetType();
-            sb.AppendLine(type.Name);
+            sb.Append(type.Name);
 
             foreach (var propertyInfo in type.GetProperties()
                 .Where(x => !excludedProperties.Contains(x) && !excludedTypes.Contains(x.PropertyType)))
             {
-                value = PrintToString(propertyInfo.GetValue(obj), nestingLevel + 1);
-                if (configDataHandler.MemberPrinters.ContainsKey(propertyInfo))
-                    value = configDataHandler.MemberPrinters[propertyInfo].Aggregate(value,
-                        (current, func) => func(current));
-
+                var objValue = propertyInfo.GetValue(obj);
+                var value = IsPrimitiveValue(objValue)
+                    ? PrintPrimitiveValue(objValue, propertyInfo)
+                    : PrintToString(propertyInfo.GetValue(obj), nestingLevel + 1);
                 sb.Append($"{identation}{propertyInfo.Name} = {value}{Environment.NewLine}");
             }
+
             return sb.ToString();
         }
 
-        private bool TryPrintPrimitiveValue(object obj, ref string s)
+        private bool IsPrimitiveValue(object obj)
         {
             var currentType = obj.GetType();
             var finalTypes = new[]
@@ -136,15 +134,24 @@ namespace ObjectPrinting
                 typeof(int), typeof(double), typeof(float), typeof(string),
                 typeof(DateTime), typeof(TimeSpan)
             };
-            if (excludedTypes.Contains(currentType) || !finalTypes.Contains(currentType)) return false;
+
+            return !excludedTypes.Contains(currentType) && finalTypes.Contains(currentType);
+        }
+
+        private string PrintPrimitiveValue(object obj, PropertyInfo propertyInfo)
+        {
+            var currentType = obj.GetType();
+
+            if (configDataHandler.MemberPrinters.ContainsKey(propertyInfo))
+                obj = configDataHandler.MemberPrinters[propertyInfo]
+                    .Aggregate(obj, (current, func) => func(current));
 
             if (configDataHandler.TypePrinters.ContainsKey(currentType))
                 obj = configDataHandler.TypePrinters[currentType].Aggregate(obj, (current, func) => func(current));
 
             obj = TryParseNumericObj(obj, currentType);
 
-            s = obj.ToString();
-            return true;
+            return obj.ToString();
         }
 
         private object TryParseNumericObj(object obj, Type currentType)
@@ -158,8 +165,8 @@ namespace ObjectPrinting
                 {typeof(long), () => ((long) obj).ToString(configDataHandler.NumericCultures[currentType])},
                 {typeof(float), () => ((float) obj).ToString(configDataHandler.NumericCultures[currentType])},
             };
-
             obj = typeCheck[currentType]();
+
             return obj;
         }
     }

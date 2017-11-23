@@ -1,17 +1,13 @@
 ﻿using System;
 using System.Globalization;
-using System.Linq.Expressions;
-using System.Security.Cryptography.X509Certificates;
 using FluentAssertions;
 using NUnit.Framework;
 
 namespace ObjectPrinting.Tests
 {
     [TestFixture]
-    public class ObjectPrinterAcceptanceTests
+    public class ObjectPrinter_Should
     {
-
-
         private Person person;
 
         [SetUp]
@@ -31,12 +27,11 @@ namespace ObjectPrinting.Tests
                 //3. Для числовых типов указать культуру
                 .Printing<int>().Using(CultureInfo.CurrentCulture)
                 //4. Настроить сериализацию конкретного свойства
-                .Printing(p => p.Name).Using(x => x.ToUpper().PadLeft(20))
+                .Printing(p => p.Name).Using(x => x.PadLeft(6))
                 //5. Настроить обрезание строковых свойств (метод должен быть виден только для строковых свойств)
-                .Printing<string>().TrimmedToLength(2)
+                .Printing<string>().TrimmedToLength(4)
                 //6. Исключить из сериализации конкретного свойства
                 .Exclude(p => p.Age);
-
 
             string s1 = printer.PrintToString(person);
 
@@ -52,7 +47,7 @@ namespace ObjectPrinting.Tests
 
 
         [Test]
-        public void ObjectPrinter_ShouldExcludeTypes_WhenExcludingDouble()
+        public void ShouldExcludeTypes_WhenExcludingDouble()
         {
             var printer = ObjectPrinter.For<Person>()
                 .Exclude<double>();
@@ -61,7 +56,7 @@ namespace ObjectPrinting.Tests
         }
 
         [Test]
-        public void ObjectPrinter_ShouldAppendCulture_WhenNumericProperty()
+        public void ShouldAppendCulture_WhenNumericProperty()
         {
             var culture = new CultureInfo("pt-BR");
             var cultured = person.Age.ToString(culture);
@@ -72,7 +67,7 @@ namespace ObjectPrinting.Tests
         }
 
         [Test]
-        public void ObjectPrinter_ShouldExcludeProperties()
+        public void ShouldExcludeProperties()
         {
             var printer = ObjectPrinter.For<Person>()
                 .Exclude(x => x.Age);
@@ -81,7 +76,7 @@ namespace ObjectPrinting.Tests
         }
 
         [Test]
-        public void ObjectPrinter_ShouldAppendSerializationType_WhenStringType()
+        public void ShouldAppendSerializationType_WhenStringType()
         {
             var printer = ObjectPrinter.For<Person>()
                 .Printing<string>().Using(x => x.ToUpper());
@@ -90,7 +85,7 @@ namespace ObjectPrinting.Tests
         }
 
         [Test]
-        public void ObjectPrinter_ShouldAppendSerializationType_WhenChooseProperty()
+        public void ShouldAppendSerializationType_WhenChooseProperty()
         {
             var printer = ObjectPrinter.For<Person>()
                 .Printing(p => p.Name).Using(x => x + x + x);
@@ -99,13 +94,24 @@ namespace ObjectPrinting.Tests
         }
 
         [Test]
-        public void ObjectPrinter_ShouldTrimm_WhenStringType()
+        public void ShouldTrimm_WhenStringType()
         {
             var printer = ObjectPrinter.For<Person>()
                 .Printing<string>().Using(x => x.ToUpper())
                 .Printing<string>().TrimmedToLength(2);
             var str = printer.PrintToString(person);
             str.Should().Contain("AL").And.NotContain("ALEX");
+        }
+
+        [Test]
+        public void ShouldTrimm_AfterTypePrintingFunctions()
+        {
+            var printer = ObjectPrinter.For<Person>()
+                .Printing<string>().Using(x => x.Insert(0, "pasted"))
+                .Printing(p => p.Name).Using(x => x + x + x)
+                .Printing<string>().TrimmedToLength(13);
+            var str = printer.PrintToString(person);
+            str.Should().Contain($"Name = pastedAlexAle{Environment.NewLine}");
         }
     }
 }
